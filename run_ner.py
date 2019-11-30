@@ -506,6 +506,8 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
                 init_string = ", *INIT_FROM_CKPT*"
             logging.info("  name = %s, shape = %s%s", var.name, var.shape,
                          init_string)
+        graph = tf.get_default_graph()
+        nodes = [ t.op for t in graph.as_graph_def().node]
 
         if mode == tf.estimator.ModeKeys.TRAIN:
             train_op = optimization.create_optimizer(total_loss, learning_rate, num_train_steps, num_warmup_steps,
