@@ -22,7 +22,7 @@ import collections
 import random
 import tokenization
 import tensorflow as tf
-import jieba
+
 import re
 flags = tf.flags
 
@@ -231,7 +231,11 @@ def get_new_segment(segment):
     :param segment: 一句话. e.g.  ['悬', '灸', '技', '术', '培', '训', '专', '家', '教', '你', '艾', '灸', '降', '血', '糖', '，', '为', '爸', '妈', '收', '好', '了', '！']
     :return: 一句处理过的话 e.g.    ['悬', '##灸', '技', '术', '培', '训', '专', '##家', '教', '你', '艾', '##灸', '降', '##血', '##糖', '，', '为', '爸', '##妈', '收', '##好', '了', '！']
     """
-    seq_cws = jieba.lcut("".join(segment)) # 分词
+    try:
+      import jieba
+      seq_cws = jieba.lcut("".join(segment))  # 分词
+    except:
+      seq_cws = segment
     #seq_cws = segment
     seq_cws_dict = {x: 1 for x in seq_cws} # 分词后的词加入到词典dict
     new_segment = []
