@@ -15,6 +15,10 @@ from keras_albert_model import load_brightmart_albert_zh_checkpoint, get_custom_
 from keras_bert import get_pretrained, PretrainedList, get_checkpoint_paths, load_trained_model_from_checkpoint
 
 '''
+pip install keras-bert
+pip install git+https://github.com/TinkerMob/keras_albert_model.git
+'''
+'''
 model_path = get_pretrained(PretrainedList.chinese_base)
 paths = get_checkpoint_paths(model_path)
 print(paths.config, paths.checkpoint, paths.vocab)
@@ -72,7 +76,7 @@ def train_pipline():
     print(x1.shape, x2.shape, y1.shape)
     v1, v2, w1 = np.array(val_line_indices), np.array(val_line_segments), np.expand_dims(np.array(val_line_tags), -1)
     print(v1.shape, v2.shape, w1.shape)
-    bert_downflow_model.fit([x1, x2], y1, batch_size=2,
+    bert_downflow_model.fit([x1, x2], y1, batch_size=16,
                             epochs=50,  verbose=1, callbacks=[checkpointer],
                             validation_data=([v1, v2], w1), shuffle=True, )
 

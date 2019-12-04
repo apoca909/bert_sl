@@ -28,17 +28,17 @@ class DataGenerator(object):
             self.wd_id[line.strip()] = idx
             self.id_wd[idx] = line.strip()
 
-    def get_train(self):
+    def get_train(self, maxs=20000):
         if self.mode==0:
             self.loaddata(path=args.train, tarpath='./res_data/train.txt')
         elif self.mode == 1:
-            return self.loaddata2(path=args.train)
-    def get_dev(self):
+            return self.loaddata2(path=args.train, maxs=maxs)
+    def get_dev(self, maxs=5000):
         if self.mode == 0:
             self.loaddata(path=args.dev, tarpath='./res_data/dev.txt')
         elif self.mode == 1:
-            return self.loaddata2(path=args.dev)
-    def loaddata2(self, path):
+            return self.loaddata2(path=args.dev, maxs=maxs)
+    def loaddata2(self, path, maxs):
         words = []
         word_idxs = []
         tags  = []
@@ -50,6 +50,8 @@ class DataGenerator(object):
         masks = []
         for line in codecs.open(path, 'r', 'utf-8'):
             line = line.strip()
+            if len(sentents) > maxs:
+                break
             if len(line) == 0:
                 words = ['[CLS]'] + words
                 tags = ['[CLS]'] + tags
@@ -70,17 +72,17 @@ class DataGenerator(object):
                 word, tag = line.strip().split()
                 words.append(word)
                 tags.append(tag)
-        words = ['[CLS]'] + words
-        tags = ['[CLS]'] + tags
-        masks.append(self.pad([1 for _ in words], args.maxlen, 0))
-        words = self.pad(words, args.maxlen, '[PAD]')
-        word_idxs = [self.wd_id.get(i, 100) for i in words]  # 100==[UNK]
-        tags = self.pad(tags, args.maxlen, '[PAD]')
-        tag_idxs = [WS_TAGS[i] for i in tags]
-        sentents.append(word_idxs)
-        sentents_tags.append(tag_idxs)
-
-        segments_ids.append([0 for _ in range(args.maxlen)])
+        if len(words) > 0:
+            words = ['[CLS]'] + words
+            tags = ['[CLS]'] + tags
+            masks.append(self.pad([1 for _ in words], args.maxlen, 0))
+            words = self.pad(words, args.maxlen, '[PAD]')
+            word_idxs = [self.wd_id.get(i, 100) for i in words]  # 100==[UNK]
+            tags = self.pad(tags, args.maxlen, '[PAD]')
+            tag_idxs = [WS_TAGS[i] for i in tags]
+            sentents.append(word_idxs)
+            sentents_tags.append(tag_idxs)
+            segments_ids.append([0 for _ in range(args.maxlen)])
 
         return sentents, masks, segments_ids, sentents_tags
 
