@@ -25,16 +25,18 @@ print(paths.config, paths.checkpoint, paths.vocab)
 '''
 def config_bert_ner():
     classes = len(load_data.WS_TAGS)
-    albert_model = load_brightmart_albert_zh_checkpoint(args.bert_ckpt_dir, seq_len=args.maxlen)
-    #bert_model = load_trained_model_from_checkpoint(config_file="./res_models/chinese_L-12_H-768_A-12/bert_config.json",
-    #                                                checkpoint_file="./res_models/chinese_L-12_H-768_A-12/bert_model.ckpt", seq_len=64)
+    # albert_model = load_brightmart_albert_zh_checkpoint(args.bert_ckpt_dir, seq_len=args.maxlen)
 
-    bert_model = albert_model
-    bert_model.summary()
-    bert_emb = bert_model.get_layer('MLM-Norm').output
-    #bert_emb = bert_model.output
+    # bert_emb = albert_model.get_layer('MLM-Norm').output
 
-    birnn = Bidirectional(GRU(64, return_sequences=True, dropout=0.15, recurrent_dropout=0.15))(bert_emb)
+
+    bert_model = load_trained_model_from_checkpoint(config_file="./res_models/chinese_L-12_H-768_A-12/bert_config.json",
+                                                    checkpoint_file="./res_models/chinese_L-12_H-768_A-12/bert_model.ckpt", seq_len=64)
+
+
+    bert_emb = bert_model.output
+
+    birnn = Bidirectional(GRU(128, return_sequences=True, dropout=0.15, recurrent_dropout=0.15))(bert_emb)
     ner_dense = TimeDistributed(Dense(classes))(birnn)
 
     use_crf = False
@@ -67,8 +69,8 @@ def train_pipline():
                                    mode='max', verbose=1, save_best_only=True)
     data_gener = load_data.DataGenerator(mode=1)
 
-    train_line_indices, train_line_segments, train_line_tags, train_line_chs = data_gener.get_train()
-    val_line_indices, val_line_segments, val_line_tags, val_line_chs = data_gener.get_dev()
+    train_line_indices, train_masks, train_line_segments, train_line_tags, train_line_chs = data_gener.get_train()
+    val_line_indices, val_masks, val_line_segments, val_line_tags, val_line_chs = data_gener.get_dev()
 
     bert_downflow_model = config_bert_ner()
 
@@ -82,24 +84,28 @@ def train_pipline():
 
 
 def test_pipline():
+    import codecs
     custom_objects = {"ChainCRF": ChainCRF}
     custom_objects.update(get_custom_objects())
-    model = load_model(filepath=args.ckpt, custom_objects={"ChainCRF": ChainCRF}, compile=False)
+    model = load_model(u'F:/workspace/albert_zh-loc/model/bert_ner-2019.12.04_20.15.00/e-005-vl-0.3911-va-0.7899.h5',
+                       custom_objects=custom_objects,
+                       compile=False)
     data_gener = load_data.DataGenerator(mode=1)
-    val_line_indices, val_line_segments, val_line_tags, val_line_chs = data_gener.get_dev()
+    val_line_indices, val_masks, val_line_segments, val_line_tags, val_line_chs = data_gener.get_dev()
 
     pred_tags = model.predict([val_line_indices, val_line_segments])
     if pred_tags.shape[-1] > 1:
         pred_class = pred_tags.argmax(axis=-1)
     else:
         pred_class = (pred_tags > 0.5).astype('int32')
-    TAG = {0: 'B', 1: 'I', 2: 'E', 3: 'S'}
-    result = args.pred_result.open('w', encoding='utf-8')
+    WS_TAGS = {'B-WD':0, 'I-WD':1, 'E-WD':2, 'S-WD':3, '[CLS]':4, '[SEP]':5, '[PAD]':6}
+    result = codecs.open(args.pred_result, 'w', encoding='utf-8')
     for i, chs in enumerate(val_line_chs):
         new_line = ""
+
         for j, t in enumerate(pred_class[i]):
             if j == 0: continue
-            if chs[j] == "[SEP]": break
+            if val_masks[i][j] == 0: break
             new_line += chs[j]
 
             if t in [2, 3]:

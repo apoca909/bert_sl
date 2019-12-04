@@ -44,6 +44,7 @@ class DataGenerator(object):
         tags  = []
         tag_idxs = []
 
+        sentents_chs = []
         sentents = []
         sentents_tags = []
         segments_ids  = []
@@ -56,11 +57,13 @@ class DataGenerator(object):
                 words = ['[CLS]'] + words
                 tags = ['[CLS]'] + tags
                 masks.append(self.pad([1 for _ in words], args.maxlen, 0 ))
+
                 words = self.pad(words, args.maxlen, '[PAD]')
                 word_idxs = [self.wd_id.get(i, 100) for i in words] #100==[UNK]
                 tags = self.pad(tags, args.maxlen, '[PAD]')
                 tag_idxs = [WS_TAGS[i] for i in tags]
 
+                sentents_chs.append(words)
                 sentents.append(word_idxs)
                 sentents_tags.append(tag_idxs)
                 segments_ids.append([0 for _ in range(args.maxlen)])
@@ -80,11 +83,12 @@ class DataGenerator(object):
             word_idxs = [self.wd_id.get(i, 100) for i in words]  # 100==[UNK]
             tags = self.pad(tags, args.maxlen, '[PAD]')
             tag_idxs = [WS_TAGS[i] for i in tags]
+            sentents_chs.append(words)
             sentents.append(word_idxs)
             sentents_tags.append(tag_idxs)
             segments_ids.append([0 for _ in range(args.maxlen)])
 
-        return sentents, masks, segments_ids, sentents_tags
+        return sentents, masks, segments_ids, sentents_tags, sentents_chs
 
     @classmethod
     def pad(cls, vals, pad_size, pad_val):
