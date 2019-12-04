@@ -1,0 +1,16 @@
+import argparse
+
+parser = argparse.ArgumentParser(description='========config==========')
+parser.add_argument('--data', default='', type=str, help='data dir')
+parser.add_argument('--bert_ckpt_dir', default='res_models/albert_base_zh/', type=str, help='bert ckpt')
+parser.add_argument("--train_dir", type=str, default='./res_data/train')
+parser.add_argument("--dev_dir", type=str, default='./res_data/dev')
+parser.add_argument("--train", type=str, default='./res_data/train.txt')
+parser.add_argument("--dev", type=str, default='./res_data/dev.txt')
+parser.add_argument("--vocab", type=str, default='./res_data/vocab.txt')
+parser.add_argument("--maxlen", type=int, default=64)
+parser.add_argument("--do_train", type=bool, default=True)
+parser.add_argument("--modeldir", type=str, default='model')
+parser.add_argument('--bert_config', type=str, default='res_model/albert_base_zh/albert_model_base.json')
+parser.add_argument('--bert_ckpt', default='res_models/albert_base_zh/albert_model.ckpt', type=str, help='bert ckpt')
+args = parser.parse_args()

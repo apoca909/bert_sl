@@ -1,42 +1,95 @@
 #encoding=utf-8
-import argparse
+from config import args
 import os
 import codecs
-import re
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-train", type=str, default='./data/train')
-parser.add_argument("-dev", type=str, default='./data/dev')
-args = parser.parse_args()
 
 entity_left_tag = '['
 entity_right_tag = ']/'
 
-WS_TAGS = {'B-WD':0, 'I-WD':1, 'E-WD':2, 'S-WD':3}
+WS_TAGS = {'B-WD':0, 'I-WD':1, 'E-WD':2, 'S-WD':3, '[CLS]':4, '[SEP]':5, '[PAD]':6}
 wstags = set()
 postags = set()
 entitytags = set()
 
-def cut_sent(para):
-    para = re.sub('([。！？\?])([^”’])', r"\1\n\2", para)  # 单字符断句符
-    para = re.sub('(\.{6})([^”’])', r"\1\n\2", para)  # 英文省略号
-    para = re.sub('(\…{2})([^”’])', r"\1\n\2", para)  # 中文省略号
-    para = re.sub('([。！？\?][”’])([^，。！？\?])', r'\1\n\2', para)
-    # 如果双引号前有终止符，那么双引号才是句子的终点，把分句符\n放到双引号后，注意前面的几句都小心保留了双引号
-    para = para.rstrip()  # 段尾如果有多余的\n就去掉它
-    # 很多规则中会考虑分号;，但是这里我把它忽略不计，破折号、英文双引号等同样忽略，需要的再做些简单调整即可。
-    return para.split("\n")
 
-class DataGenerator():
-    def __init__(self, level=1):
+class DataGenerator(object):
+    def __init__(self, level=0, mode=0):
         self.level = level #0 word seg,  1  pos, 2 name entity
         self.buildtag = True
+        self.mode=mode
         self.tags = set()
-    def get_train(self):
-        self.loaddata(path=args.train, tarpath='./data/train.space')
+        self.wd_id = {}
+        self.id_wd = {}
+        self.load_vocab()
 
+    def load_vocab(self):
+        for idx, line in enumerate(codecs.open(args.vocab, 'r', 'utf-8')):
+            self.wd_id[line.strip()] = idx
+            self.id_wd[idx] = line.strip()
+
+    def get_train(self):
+        if self.mode==0:
+            self.loaddata(path=args.train, tarpath='./res_data/train.txt')
+        elif self.mode == 1:
+            return self.loaddata2(path=args.train)
     def get_dev(self):
-        self.loaddata(path=args.dev, tarpath='./data/dev.space')
+        if self.mode == 0:
+            self.loaddata(path=args.dev, tarpath='./res_data/dev.txt')
+        elif self.mode == 1:
+            return self.loaddata2(path=args.dev)
+    def loaddata2(self, path):
+        words = []
+        word_idxs = []
+        tags  = []
+        tag_idxs = []
+
+        sentents = []
+        sentents_tags = []
+        segments_ids  = []
+        masks = []
+        for line in codecs.open(path, 'r', 'utf-8'):
+            line = line.strip()
+            if len(line) == 0:
+                words = ['[CLS]'] + words
+                tags = ['[CLS]'] + tags
+                masks.append(self.pad([1 for _ in words], args.maxlen, 0 ))
+                words = self.pad(words, args.maxlen, '[PAD]')
+                word_idxs = [self.wd_id.get(i, 100) for i in words] #100==[UNK]
+                tags = self.pad(tags, args.maxlen, '[PAD]')
+                tag_idxs = [WS_TAGS[i] for i in tags]
+
+                sentents.append(word_idxs)
+                sentents_tags.append(tag_idxs)
+                segments_ids.append([0 for _ in range(args.maxlen)])
+                words = []
+                word_idxs = []
+                tags = []
+                tag_idxs = []
+            else:
+                word, tag = line.strip().split()
+                words.append(word)
+                tags.append(tag)
+        words = ['[CLS]'] + words
+        tags = ['[CLS]'] + tags
+        masks.append(self.pad([1 for _ in words], args.maxlen, 0))
+        words = self.pad(words, args.maxlen, '[PAD]')
+        word_idxs = [self.wd_id.get(i, 100) for i in words]  # 100==[UNK]
+        tags = self.pad(tags, args.maxlen, '[PAD]')
+        tag_idxs = [WS_TAGS[i] for i in tags]
+        sentents.append(word_idxs)
+        sentents_tags.append(tag_idxs)
+
+        segments_ids.append([0 for _ in range(args.maxlen)])
+
+        return sentents, masks, segments_ids, sentents_tags
+
+    @classmethod
+    def pad(cls, vals, pad_size, pad_val):
+        vals = vals[0:pad_size]
+        if len(vals) < pad_size:
+            vals = vals + [pad_val for i in range(pad_size - len(vals))]
+        return vals
 
     def loaddata(self, path, tarpath):
         docs = []
@@ -188,10 +241,10 @@ class DataGenerator():
                 words.append(wd)
                 tags.append('O')
         return [words, tags]
+
 if __name__ == '__main__':
-    datagenerator = DataGenerator(level=0)
-    datagenerator.get_train()
-    print(len(wstags), sorted(list(wstags), key=lambda x:x[2:]))
-    print(len(postags), sorted(list(postags), key=lambda x:x[2:]))
-    print(len(entitytags), sorted(list(entitytags), key=lambda x:x[2:]))
+    datagenerator = DataGenerator(mode=1)
+    tups = datagenerator.get_train()
+    print(tups[1])
+
     datagenerator.get_dev()
