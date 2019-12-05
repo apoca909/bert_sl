@@ -11,12 +11,15 @@ from datetime import datetime
 import numpy as np
 import load_data
 from keras_albert_model import load_brightmart_albert_zh_checkpoint, get_custom_objects
-
+from keras_contrib.layers.crf import CRF
+from keras_contrib.losses import crf_loss
+from keras_contrib.metrics import crf_viterbi_accuracy
 from keras_bert import get_pretrained, PretrainedList, get_checkpoint_paths, load_trained_model_from_checkpoint
 
 '''
 pip install keras-bert
 pip install git+https://github.com/TinkerMob/keras_albert_model.git
+pip install git+https://www.github.com/keras-team/keras-contrib.git
 '''
 '''
 model_path = get_pretrained(PretrainedList.chinese_base)
@@ -39,15 +42,16 @@ def config_bert_ner():
     birnn = Bidirectional(GRU(128, return_sequences=True, dropout=0.15, recurrent_dropout=0.15))(bert_emb)
     ner_dense = TimeDistributed(Dense(classes))(birnn)
 
-    use_crf = False
+    use_crf = True
     if use_crf:
-        crf_layer = ChainCRF()
+        crf_layer = CRF(classes, sparse_target=True)
         pred = crf_layer(ner_dense)
-        loss = crf_layer.sparse_loss
+        loss = crf_loss
+        acc = crf_viterbi_accuracy
     else:
         pred = Activation('softmax')(ner_dense)
         loss = 'sparse_categorical_crossentropy'
-    acc = 'sparse_categorical_accuracy'
+        acc = 'sparse_categorical_accuracy'
     adam = keras.optimizers.Adam(lr=0.001, amsgrad=True)
 
     model = Model(inputs=bert_model.inputs, outputs=[pred])
@@ -63,9 +67,9 @@ def train_pipline():
         os.makedirs(os.path.join(args.modeldir, now))
 
     savepath = os.path.join(args.modeldir, now,
-                            'e-{epoch:03d}-vl-{val_loss:.4f}-va-{val_sparse_categorical_accuracy:.4f}.h5')
+                            'e-{epoch:03d}-vl-{val_loss:.4f}-va-{val_crf_viterbi_accuracy:.4f}.h5')
     checkpointer = ModelCheckpoint(filepath=savepath,
-                                   monitor='val_sparse_categorical_accuracy',
+                                   monitor='val_crf_viterbi_accuracy',
                                    mode='max', verbose=1, save_best_only=True)
     data_gener = load_data.DataGenerator(mode=1)
 
@@ -78,7 +82,7 @@ def train_pipline():
     print(x1.shape, x2.shape, y1.shape)
     v1, v2, w1 = np.array(val_line_indices), np.array(val_line_segments), np.expand_dims(np.array(val_line_tags), -1)
     print(v1.shape, v2.shape, w1.shape)
-    bert_downflow_model.fit([x1, x2], y1, batch_size=16,
+    bert_downflow_model.fit([x1, x2], y1, batch_size=2,
                             epochs=50,  verbose=1, callbacks=[checkpointer],
                             validation_data=([v1, v2], w1), shuffle=True, )
 
