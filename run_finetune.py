@@ -89,9 +89,11 @@ def train_pipline():
 
 def test_pipline():
     import codecs
-    custom_objects = {"ChainCRF": ChainCRF}
+    custom_objects={'CRF': CRF,
+                        'crf_loss': crf_loss,
+                        'crf_viterbi_accuracy': crf_viterbi_accuracy}
     custom_objects.update(get_custom_objects())
-    model = load_model(u'F:/workspace/albert_zh-loc/model/bert_ner-2019.12.04_20.15.00/e-005-vl-0.3911-va-0.7899.h5',
+    model = load_model(u'./model/bert_ner-2019.12.05_11.23.04/e-010-vl-5.1068-va-0.3770.h5',
                        custom_objects=custom_objects,
                        compile=False)
     data_gener = load_data.DataGenerator(mode=1)
